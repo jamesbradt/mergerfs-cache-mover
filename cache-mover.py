@@ -135,15 +135,25 @@ def gather_files_to_move(config):
 
     all_files.sort(key=lambda fn: os.stat(fn).st_mtime)
     files_to_move = []
+    total_to_move = 0
 
-    while get_fs_usage(config['Paths']['CACHE_PATH']) > config['Settings']['TARGET_PERCENTAGE'] and all_files:
-        files_to_move.append(all_files.pop(0))
-        if len(files_to_move) % 10 == 0:
-            current_usage = get_fs_usage(config['Paths']['CACHE_PATH'])
-            logging.info(f"Current cache usage: {current_usage:.2f}%")
-            if current_usage <= config['Settings']['TARGET_PERCENTAGE']:
-                logging.info(f"Reached target percentage. Stopping file gathering.")
-                break
+    total_size, current_size, _ = shutil.disk_usage(config['Paths']['CACHE_PATH'])
+    target_pct = (config['Settings']['TARGET_PERCENTAGE'])
+    target_size = total_size * target_pct / 100.0
+
+#    logging.info(f"current_size: {current_size:_} -- target_size: {target_size:_}")
+    while current_size > target_size and all_files:
+        file_to_move = all_files.pop(0)
+        file_size_to_move = os.path.getsize(file_to_move)
+        current_size = current_size - file_size_to_move
+        files_to_move.append(file_to_move)
+#        logging.info(f"adding: {file_to_move} -- {file_size_to_move:_}")
+
+        current_usage = (current_size / total_size) * 100
+#        logging.info(f"Calculated cache usage: {current_usage:.2f}%")
+        if current_usage <= target_pct:
+            logging.info(f"Reached target percentage. Stopping file gathering.")
+            break
 
     return files_to_move
 
